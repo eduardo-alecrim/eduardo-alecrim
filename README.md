@@ -1,6 +1,6 @@
 # Eduardo Alecrim
 
-**Java Backend Developer** · Cast Group · Brasília, Brazil
+**Java Backend Developer** · Cassi · Brasília, Brazil
 
 ## Focus
 
