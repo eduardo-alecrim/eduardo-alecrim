@@ -90,11 +90,29 @@ GLYPHS = {  # stroked 24x24 drawings for tools without a Simple Icons logo
 
 SANS = "'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif"
 MONO = "'JetBrains Mono','Cascadia Mono',Consolas,'SFMono-Regular',Menlo,'Liberation Mono',monospace"
+# Entrances play once on load (pop, rise, draw, type); the rest loops. Every
+# entrance animates *from* hidden, so with reduced motion everything just shows.
 BASE_CSS = (
     f".s{{font-family:{SANS}}}.m{{font-family:{MONO}}}"
     "@keyframes blink{50%{opacity:.25}}.blink{animation:blink 1.4s steps(1) infinite}"
     "@keyframes pulse{from{transform:scale(1);opacity:.9}to{transform:scale(2.3);opacity:0}}"
     ".pulse{transform-box:fill-box;transform-origin:center;animation:pulse 2.4s ease-out infinite}"
+    "@keyframes pop{from{transform:scale(0);opacity:0}}"
+    ".pop{transform-box:fill-box;transform-origin:center;animation:pop .5s cubic-bezier(.34,1.56,.64,1) both}"
+    "@keyframes rise{from{opacity:0;transform:translateY(10px)}}.rise{animation:rise .6s ease-out both}"
+    "@keyframes draw{from{stroke-dashoffset:1}}.draw{animation:draw 1.2s cubic-bezier(.65,0,.35,1) both}"
+    "@keyframes type{from{fill-opacity:0}to{fill-opacity:1}}.type{animation:type .01s steps(1) both}"
+    "@keyframes flicker{0%,86%,89%,93%,100%{opacity:1}87%{opacity:.3}91%{opacity:.55}}"
+    ".flicker{animation:flicker 6s linear infinite}"
+    "@keyframes sweep{0%{transform:translateX(0)}50%,100%{transform:translateX(1400px)}}"
+    ".sweep{animation:sweep 5s ease-in-out 1.5s infinite}"
+    "@keyframes breathe{from{opacity:.04}to{opacity:.14}}.breathe{animation:breathe 4s ease-in-out infinite alternate}"
+    "@keyframes uncover{from{transform:scaleX(1)}}"
+    ".uncover{transform-box:fill-box;transform-origin:right;transform:scaleX(0);"
+    "animation:uncover 1s cubic-bezier(.65,0,.35,1) both}"
+    ".scan{opacity:0;animation:scan 1s cubic-bezier(.65,0,.35,1) both}"
+    "@keyframes ring{from{transform:scale(1);opacity:.7}to{transform:scale(1.15,1.6);opacity:0}}"
+    ".ring{transform-box:fill-box;transform-origin:center;animation:ring 2.4s ease-out infinite}"
     "@media (prefers-reduced-motion:reduce){*{animation:none!important}.train{display:none}}"
 )
 
@@ -162,9 +180,9 @@ def bullet(label, colors, cx=52, cy=42, r=17):
 
 
 def header(mark, title, note="", width=1000):
-    out = mark + text(84, 50, title, 25, weight=700)
+    out = appear(mark, "pop", 0.05) + appear(text(84, 50, title, 25, weight=700), "rise", 0.15)
     if note:
-        out += text(width - 40, 48, note, 12, "m", INK_3, anchor="end", spacing=1)
+        out += appear(text(width - 40, 48, note, 12, "m", INK_3, anchor="end", spacing=1), "rise", 0.3)
     return out + f'<line x1="24" y1="80" x2="{width - 24}" y2="80" stroke="{EDGE}"/>'
 
 
@@ -187,22 +205,77 @@ def closed_station(x, y):
     )
 
 
-def train(path, dur, color, begin="0s", length=20):
-    """A lit carriage running along a path, fading in and out at the ends."""
+def train(path, dur, color, begin=0, length=20):
+    """A lit carriage running along a path at a steady speed, fading in and out at the ends."""
     h = length * 0.375
+    timing = f'dur="{dur:g}s" begin="{begin:g}s" repeatCount="indefinite"'
     return (
         f'<g class="train" opacity="0">'
         f'<rect x="{-length / 2:g}" y="{-h / 2:g}" width="{length}" height="{h:g}" rx="{h / 2:g}" '
         f'fill="{color}" filter="url(#glow)"/>'
-        f'<animateMotion path="{path}" dur="{dur}" begin="{begin}" repeatCount="indefinite"/>'
-        f'<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.05;.95;1" dur="{dur}" '
-        f'begin="{begin}" repeatCount="indefinite"/></g>'
+        f'<animateMotion path="{path}" rotate="auto" {timing}/>'
+        f'<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.05;.95;1" {timing}/></g>'
     )
 
 
-def line(x, y1, y2, color):
-    """A vertical line diagram running down the left of a panel."""
-    return f'<path d="M{x} {y1}V{y2}" stroke="{color}" stroke-width="8" stroke-linecap="round"/>'
+def flash(x, y, color, begin, dur, r0=11, r1=30):
+    """A ring that bursts from a station every time a train reaches it.
+
+    It repeats with the train's period, so start it when the train first arrives.
+    """
+    burst = min(0.9, 1.1 / dur)
+    timing = f'keyTimes="0;{burst:.3f};1" dur="{dur:g}s" begin="{begin:.2f}s" repeatCount="indefinite"'
+    return (
+        f'<circle cx="{x:g}" cy="{y:g}" r="{r0}" fill="none" stroke="{color}" stroke-width="2.5" opacity="0">'
+        f'<animate attributeName="r" values="{r0};{r1};{r1}" {timing}/>'
+        f'<animate attributeName="opacity" values="1;0;0" {timing}/></circle>'
+        f'<circle cx="{x:g}" cy="{y:g}" r="5.5" fill="{color}" opacity="0">'
+        f'<animate attributeName="opacity" values="1;0;0" {timing}/></circle>'
+    )
+
+
+def appear(markup, cls, at):
+    """Wraps markup in an entrance (pop or rise) that starts `at` seconds in."""
+    return f'<g class="{cls}" style="animation-delay:{at:.2f}s">{markup}</g>'
+
+
+def drawn(d, color, at, dur=1.2, width=8):
+    """A line that draws itself from its first point to its last."""
+    return (
+        f'<path class="draw" d="{d}" pathLength="1" stroke-dasharray="1" fill="none" stroke="{color}" '
+        f'stroke-width="{width}" stroke-linecap="round" stroke-linejoin="round" '
+        f'style="animation-delay:{at:.2f}s;animation-duration:{dur:g}s"/>'
+    )
+
+
+def typed(x, y, content, size, start, step=0.028, fill=INK_2):
+    """Text that types itself in, one character at a time."""
+    spans = "".join(
+        f'<tspan class="type" style="animation-delay:{start + i * step:.3f}s">{escape(ch)}</tspan>'
+        for i, ch in enumerate(content)
+    )
+    return f'<text class="s" x="{x}" y="{y}" font-size="{size}" fill="{fill}" style="white-space:pre">{spans}</text>'
+
+
+def wiped(markup, box, color, at, dur=1.0):
+    """Reveals markup left to right behind a bright bar, like a sign being lit.
+
+    A panel-coloured cover shrinks away to the right while the bar sweeps across.
+    `box` is (x, y, width, height) of the area to reveal; returns (css, body).
+    """
+    x, y, w, h = box
+    timing = f'style="animation-delay:{at:g}s;animation-duration:{dur:g}s"'
+    css = (
+        f"@keyframes scan{{0%{{opacity:1;transform:translateX(0)}}85%{{opacity:1}}"
+        f"100%{{opacity:0;transform:translateX({w:g}px)}}}}"
+    )
+    body = (
+        markup
+        + f'<rect class="uncover" x="{x}" y="{y}" width="{w:g}" height="{h}" fill="{PANEL}" {timing}/>'
+        + f'<rect class="scan" x="{x}" y="{y + 8}" width="4" height="{h - 16}" rx="2" fill="{color}" '
+        f'filter="url(#glow)" {timing}/>'
+    )
+    return css, body
 
 
 def pill(right, cy, label, color, dot=False):
@@ -230,12 +303,23 @@ def icon(key, x, y, color, size=20):
     return text(x + size / 2, y + size * 0.74, key, size * 0.66, weight=800, fill=color, anchor="middle")
 
 
-def chip(x, cy, name, key, color):
-    """A tool: its logo and name in a rounded box. Returns markup and width."""
+def chip(x, cy, name, key, color, lit=None):
+    """A tool: its logo and name in a rounded box. Returns markup and width.
+
+    `lit` is (begin, period): the border lights up then, once per period.
+    """
     width = 46 + text_width(name, 15, bold=True) + 16
+    glow_up = ""
+    if lit:
+        begin, period = lit
+        glow_up = (
+            f'<animate attributeName="stroke" values="{color};{EDGE_HI};{EDGE_HI}" '
+            f'keyTimes="0;{min(0.9, 1.2 / period):.3f};1" dur="{period:g}s" begin="{begin:.2f}s" '
+            'repeatCount="indefinite"/>'
+        )
     return (
         f'<rect x="{x:g}" y="{cy - 19}" width="{width:g}" height="38" rx="19" fill="{CHIP}" '
-        f'stroke="{EDGE_HI}"/>'
+        f'stroke="{EDGE_HI}">{glow_up}</rect>'
         + icon(key, x + 15, cy - 10, color)
         + text(x + 46, cy + 5, name, 15, weight=700)
     ), width
@@ -250,100 +334,136 @@ def hero(theme):
     width, height = 1000, 366
     y = 264
     xs = [150 + (850 - 150) * i / (len(FOCUS) - 1) for i in range(len(FOCUS))]
+    line_at, line_dur = 1.0, 1.2           # the line draws itself...
+    run_at, run_dur = 2.6, 7.0             # ...then a train keeps running along it
+
+    name_w = min(text_width(NAME, 80, bold=True) + 24, width - 80)
+    wipe_css, name = wiped(text(46, 152, NAME, 80, weight=800, spacing=-2), (40, 70, name_w, 104), led, 0.15)
 
     body = [
         f'<g clip-path="url(#board)"><rect width="{width}" height="{height}" fill="{PANEL}"/>'
-        f'<rect width="{width}" height="12" fill="{led}"/></g>'
+        f'<circle class="breathe" cx="{width - 120}" cy="40" r="320" fill="url(#halo)" opacity=".09"/>'
+        f'<rect width="{width}" height="12" fill="{led}"/>'
+        '<rect class="sweep" x="-220" width="220" height="12" fill="url(#sheen)"/></g>'
         f'<rect x="0.75" y="0.75" width="{width - 1.5}" height="{height - 1.5}" rx="18" fill="none" '
         f'stroke="{EDGE}" stroke-width="1.5"/>'
     ]
-    body.append(text(52, 66, ROLE, 13, "m", led, weight=700, spacing=3))
-    body.append(
+    body.append(appear(text(52, 66, ROLE, 13, "m", led, weight=700, spacing=3), "rise", 0))
+    body.append(appear(
         f'<text class="m" x="{width - 52}" y="66" font-size="11" fill="{INK_3}" text-anchor="end" '
         f'letter-spacing="1.5"><tspan fill="{VERDE}">●</tspan> <tspan fill="{LARANJA}">●</tspan>  '
-        f"{escape(LOCATION)}</text>"
-    )
-    body.append(text(46, 152, NAME, 80, weight=800, spacing=-2))
-    body.append(text(50, 192, TAGLINE, 18, fill=INK_2))
+        f"{escape(LOCATION)}</text>", "rise", 0.1))
+    body.append(name)
+    body.append(typed(50, 192, TAGLINE, 18, start=1.0))
 
-    body.append(f'<path d="M60 {y}H{width - 60}" stroke="{led}" stroke-width="8" stroke-linecap="round"/>')
-    body.append(train(f"M60,{y} H{width - 60}", "7s", INK, begin="0.6s"))
+    body.append(drawn(f"M60 {y}H{width - 60}", led, line_at, line_dur))
+    labels = []
     for x, (what, tools) in zip(xs, FOCUS):
-        body.append(station(x, y))
-        body.append(text(x, y + 42, what, 16.5, weight=700, anchor="middle"))
-        body.append(text(x, y + 64, tools, 12, "m", led, anchor="middle"))
+        reach = (x - 60) / (width - 120)
+        body.append(appear(station(x, y), "pop", line_at + reach * line_dur))
+        labels.append(flash(x, y, led, run_at + reach * run_dur, run_dur))
+        labels.append(appear(
+            text(x, y + 42, what, 16.5, weight=700, anchor="middle")
+            + text(x, y + 64, tools, 12, "m", led, anchor="middle"),
+            "rise", line_at + reach * line_dur + 0.15))
+    body.append(train(f"M60,{y} H{width - 60}", run_dur, INK, begin=run_at))
+    body += labels
 
     label = f"{NAME}, Java backend developer in Brasília, Brazil. {TAGLINE} " + "; ".join(
         f"{what}: {tools}" for what, tools in FOCUS
     ) + "."
-    defs = f'<clipPath id="board"><rect width="{width}" height="{height}" rx="18"/></clipPath>' + glow()
-    return document(width, height, label, body, defs=defs)
+    defs = (
+        f'<clipPath id="board"><rect width="{width}" height="{height}" rx="18"/></clipPath>'
+        f'<radialGradient id="halo"><stop offset="0" stop-color="{led}"/>'
+        f'<stop offset="1" stop-color="{led}" stop-opacity="0"/></radialGradient>'
+        '<linearGradient id="sheen"><stop offset="0" stop-color="#fff" stop-opacity="0"/>'
+        '<stop offset=".5" stop-color="#fff" stop-opacity=".6"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>'
+        "</linearGradient>"
+        + glow()
+    )
+    return document(width, height, label, body, wipe_css, defs)
 
 
 def right_now(theme):
     led = theme["led"]
     width = 1000
     top, step = 132, 58
-    height = top + step * (len(NOW) - 1) + 56
+    bottom = top + step * (len(NOW) - 1)
+    height = bottom + 56
+    run_at, run_dur = 2.2, 4.0
     body = [panel(width, height), header(bullet("1", [led]), "Right now")]
-    body.append(line(64, top, top + step * (len(NOW) - 1), led))
+    body.append(drawn(f"M64 {top}V{bottom}", led, 0.3, 1.0))
+    body.append(train(f"M64,{top} V{bottom}", run_dur, INK, begin=run_at))
     for i, (label, sentence) in enumerate(NOW):
         y = top + i * step
-        body.append(station(64, y, current=led if i == 0 else None))
-        body.append(text(98, y - 6, label, 11.5, "m", led, weight=700, spacing=2))
-        body.append(text(98, y + 16, sentence, 16))
+        reach = (y - top) / (bottom - top)
+        body.append(appear(station(64, y, current=led if i == 0 else None), "pop", 0.3 + reach))
+        body.append(flash(64, y, led, run_at + reach * run_dur, run_dur))
+        body.append(appear(
+            text(98, y - 6, label, 11.5, "m", led, weight=700, spacing=2) + text(98, y + 16, sentence, 16),
+            "rise", 0.45 + i * 0.18))
     label = "Right now. " + " ".join(f"{label.capitalize()}: {sentence}" for label, sentence in NOW)
-    return document(width, height, label, body)
+    return document(width, height, label, body, defs=glow())
 
 
 def stack(theme):
     led = theme["led"]
     width = 1000
     top, step = 134, 58
-    height = top + step * (len(STACK) - 1) + 52
+    bottom = top + step * (len(STACK) - 1)
+    height = bottom + 52
+    run_at, run_dur = 2.6, 4.4
     body = [panel(width, height), header(bullet("2", [VERDE]), "Tech stack")]
-    body.append(line(64, top, top + step * (len(STACK) - 1), VERDE))
+    body.append(drawn(f"M64 {top}V{bottom}", VERDE, 0.3, 1.0))
+    body.append(train(f"M64,{top} V{bottom}", run_dur, INK, begin=run_at))
     for i, (group, tools) in enumerate(STACK):
         y = top + i * step
-        body.append(station(64, y))
-        body.append(text(98, y + 4, group, 11.5, "m", INK_2, weight=700, spacing=1.5))
+        reach = (y - top) / (bottom - top)
+        passes = run_at + reach * run_dur
+        body.append(appear(station(64, y), "pop", 0.3 + reach))
+        body.append(flash(64, y, VERDE, passes, run_dur))
+        body.append(appear(text(98, y + 4, group, 11.5, "m", INK_2, weight=700, spacing=1.5), "rise", 0.45 + i * 0.15))
         x = 320
-        for name, key in tools:
-            markup, w = chip(x, y, name, key, led)
-            body.append(markup)
+        for j, (name, key) in enumerate(tools):  # the chips light up as the train passes their row
+            markup, w = chip(x, y, name, key, led, lit=(passes + 0.1 + j * 0.12, run_dur))
+            body.append(appear(markup, "pop", 0.6 + i * 0.15 + j * 0.08))
             x += w + 12
     label = "Tech stack. " + " ".join(
         f"{group.capitalize()}: {', '.join(name for name, _ in tools)}." for group, tools in STACK
     )
-    return document(width, height, label, body)
+    return document(width, height, label, body, defs=glow())
 
 
 def modernization(theme):
     width = 1000
     top, step = 138, 58
     height = top + step * (len(CHANGES) - 1) + 56
+    run_dur = 2.8
     body = [panel(width, height), header(bullet("3", [LARANJA, VERDE]), "Legacy modernization",
                                          f"{len(CHANGES)} MIGRATIONS")]
     for i, (old, new, where, badge) in enumerate(CHANGES):
         y = top + i * step
         cy = y - 5
-        body.append(closed_station(64, cy))
-        body.append(text(88, y, old, 16, fill=INK_3, extra=' text-decoration="line-through"'))
+        enter = 0.2 + i * 0.12
+        run_at = 1.2 + i * 0.5
+        legacy = closed_station(64, cy) + text(88, y, old, 16, fill=INK_3, extra=' text-decoration="line-through"')
+        body.append(appear(f'<g class="flicker" style="animation-delay:{i * 1.3:.1f}s">{legacy}</g>', "rise", enter))
         body.append(
             f'<path d="M300 {cy}H546" stroke="{INK_3}" stroke-opacity=".45" stroke-width="2" '
             'stroke-dasharray="2 7" stroke-linecap="round"/>'
         )
-        body.append(train(f"M300,{cy} H546", "2.8s", VERDE, begin=f"{i * 0.5:.1f}s", length=18))
-        body.append(
+        body.append(train(f"M300,{cy} H546", run_dur, VERDE, begin=run_at, length=18))
+        body.append(appear(
             f'<path d="M553 {cy - 6}L559 {cy}L553 {cy + 6}" fill="none" stroke="{VERDE}" stroke-width="2" '
             'stroke-linecap="round" stroke-linejoin="round"/>'
             f'<circle cx="584" cy="{cy}" r="9" fill="{INK}" stroke="{VERDE}" stroke-width="4"/>'
-        )
-        body.append(text(606, y, new, 16.5, weight=700))
-        body.append(text(606, y + 20, where, 11.5, "m", INK_3))
+            + text(606, y, new, 16.5, weight=700) + text(606, y + 20, where, 11.5, "m", INK_3),
+            "rise", enter + 0.1))
+        body.append(flash(584, cy, VERDE, run_at + 0.95 * run_dur, run_dur, r0=9, r1=24))
         if badge:
             ongoing = badge == "ongoing"
-            body.append(pill(width - 44, cy, badge, LARANJA if ongoing else VERDE, dot=ongoing))
+            body.append(appear(pill(width - 44, cy, badge, LARANJA if ongoing else VERDE, dot=ongoing), "pop",
+                               enter + 0.3))
 
     label = "Legacy modernization: " + "; ".join(
         f"{old} to {new} ({where}{', ' + badge if badge else ''})" for old, new, where, badge in CHANGES
@@ -355,20 +475,27 @@ def contact(theme):
     led = theme["led"]
     width, height = 1000, 240
     cy, sx = 120, 880
+    run_at, run_dur = 2.0, 3.6
     title, sentence = CONTACT
+    wipe_css, heading = wiped(text(48, 124, title, 52, weight=800, spacing=-1),
+                               (44, 72, text_width(title, 52, bold=True) + 20, 70), led, 0.3, 0.8)
     body = [panel(width, height)]
-    body.append(text(52, 66, "CONTACT", 13, "m", led, weight=700, spacing=3))
-    body.append(text(48, 124, title, 52, weight=800, spacing=-1))
-    body.append(text(52, 160, sentence, 17, fill=INK_2))
-    body.append(f'<rect x="52" y="180" width="160" height="40" rx="20" fill="{led}"/>')
-    body.append(text(132, 205.5, "LinkedIn ↗", 15.5, weight=700, fill=BG, anchor="middle"))
+    body.append(appear(text(52, 66, "CONTACT", 13, "m", led, weight=700, spacing=3), "rise", 0))
+    body.append(heading)
+    body.append(appear(text(52, 160, sentence, 17, fill=INK_2), "rise", 0.9))
+    body.append(appear(
+        f'<rect class="ring" x="52" y="180" width="160" height="40" rx="20" fill="none" stroke="{led}" stroke-width="2"/>'
+        f'<rect x="52" y="180" width="160" height="40" rx="20" fill="{led}"/>'
+        + text(132, 205.5, "LinkedIn ↗", 15.5, weight=700, fill=BG, anchor="middle"),
+        "pop", 1.1))
 
-    body.append(f'<path d="M640 {cy}H{sx}" stroke="{led}" stroke-width="8" stroke-linecap="round"/>')
-    body.append(train(f"M640,{cy} H{sx - 24}", "3.6s", INK))
-    body.append(station(sx, cy, current=led))
-    body.append(text(sx, cy + 44, "LINKEDIN", 11, "m", INK_3, anchor="middle", spacing=1.5))
+    body.append(drawn(f"M640 {cy}H{sx}", led, 0.6, 1.0))
+    body.append(train(f"M640,{cy} H{sx - 24}", run_dur, INK, begin=run_at))
+    body.append(appear(station(sx, cy, current=led), "pop", 1.5))
+    body.append(flash(sx, cy, led, run_at + 0.95 * run_dur, run_dur, r0=14, r1=34))
+    body.append(appear(text(sx, cy + 44, "LINKEDIN", 11, "m", INK_3, anchor="middle", spacing=1.5), "rise", 1.6))
     label = f"Contact. {title} {sentence} Find me on LinkedIn."
-    return document(width, height, label, body, defs=glow())
+    return document(width, height, label, body, wipe_css, defs=glow())
 
 
 def linkedin_button(theme):
