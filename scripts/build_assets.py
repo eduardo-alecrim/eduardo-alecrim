@@ -512,6 +512,21 @@ def linkedin_button(theme):
     return document(width, height, "LinkedIn: eduardosantosalm", body)
 
 
+def portfolio_button(theme):
+    led = theme["led"]
+    width, height = 332, 48
+    body = [
+        f'<rect x="0.75" y="0.75" width="{width - 1.5}" height="{height - 1.5}" rx="23.25" fill="{PANEL}" '
+        f'stroke="{EDGE_HI}" stroke-width="1.5"/>',
+        f'<circle cx="24" cy="24" r="15" fill="{led}"/>',
+        f'<path d="M18.5 29.5 29 19M21.5 18.5H29.5V26.5" fill="none" stroke="{BG}" stroke-width="2.6" '
+        'stroke-linecap="round" stroke-linejoin="round"/>',
+        f'<text class="s" x="50" y="29.5" font-size="15.5"><tspan font-weight="700" fill="{INK}">Portfolio</tspan>'
+        f'<tspan class="m" dx="9" font-size="12" fill="{INK_3}">eduardo-alecrim.github.io</tspan></text>',
+    ]
+    return document(width, height, "Portfolio: eduardo-alecrim.github.io", body)
+
+
 DRAWINGS = {
     "hero.svg": hero,
     "right-now.svg": right_now,
@@ -519,6 +534,7 @@ DRAWINGS = {
     "modernization.svg": modernization,
     "contact.svg": contact,
     "linkedin.svg": linkedin_button,
+    "portfolio.svg": portfolio_button,
 }
 
 

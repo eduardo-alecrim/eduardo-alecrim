@@ -6,6 +6,8 @@
 </p>
 
 <p align="center">
+  <a href="https://eduardo-alecrim.github.io"><img src="./assets/portfolio.svg" height="44" alt="Portfolio: eduardo-alecrim.github.io" /></a>
+  &nbsp;
   <a href="https://www.linkedin.com/in/eduardosantosalm/"><img src="./assets/linkedin.svg" height="44" alt="LinkedIn: eduardosantosalm" /></a>
 </p>
 
@@ -31,6 +33,6 @@ Desenvolvedor backend Java em **Brasília**. Gosto de APIs bem feitas, sistemas 
 - **Stack:** Java, Spring Boot, Quarkus, Apache Kafka, REST, SOAP, OpenShift, SQL Server, Oracle, React, C# e ASP.NET MVC.
 - **Modernização de legado:** ASP.NET Web Forms → ASP.NET MVC · Apache Camel → Spring Boot · todos os serviços SOAP do Oracle SOA → APIs REST em Spring Boot · ASP.NET MVC 4.6 → Java + React · OpenShift 3 → OpenShift 4.
 
-Vamos conversar? Me chama no **[LinkedIn](https://www.linkedin.com/in/eduardosantosalm/)**.
+Portfólio: **[eduardo-alecrim.github.io](https://eduardo-alecrim.github.io)**. Vamos conversar? Me chama no **[LinkedIn](https://www.linkedin.com/in/eduardosantosalm/)**.
 
 </details>
