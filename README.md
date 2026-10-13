@@ -1,25 +1,36 @@
-<img src="./assets/sheet-01-arrangement.svg" alt="Sheet 01, general arrangement. Eduardo Alecrim, Java backend developer in Brasília. Requests pass through a facade while legacy systems (Oracle SOA, Apache Camel, ASP.NET MVC 4.6, OpenShift 3) are replaced by a new platform on OpenShift 4: Spring Boot and Quarkus services, a React frontend and SQL Server, connected by Apache Kafka as the event bus." width="100%" />
+<a href="https://www.linkedin.com/in/eduardosantosalm/"><img src="./assets/hero.svg" width="100%" alt="Eduardo Alecrim, Java backend developer in Brasília, Brazil. I build backend services and modernize the legacy systems behind them. REST APIs with Spring Boot and Quarkus; event-driven systems with Apache Kafka; cloud-native apps on OpenShift; legacy modernization, from SOAP to REST and from .NET to Java." /></a>
 
 <p align="center">
-  <a href="https://www.linkedin.com/in/eduardosantosalm/"><b>LinkedIn ↗</b></a>
-  &nbsp;·&nbsp; Java backend developer at <a href="https://www.cassi.com.br">CASSI</a>
-  &nbsp;·&nbsp; Brasília, Brazil
+  Java backend developer from Brasília, Brazil. I like clean APIs, event-driven systems<br>
+  and turning legacy code into something a team enjoys working on.
 </p>
 
-<img src="./assets/sheet-02-revisions.svg" alt="Sheet 02, revision history (career). Rev E, 2026: postgraduate in Agile Software Engineering at UNIASSELVI (DDD, Clean Architecture, TDD). Rev D, 2024: Java backend developer at CASSI (Spring Boot, Quarkus, Kafka, ASP.NET MVC to Java and React, OpenShift 3 to 4). Rev C, 2023: senior developer at CAST group, moved every SOAP service off Oracle SOA to Spring Boot. Rev B, 2022: mid-level developer at CAST group, Apache Camel to Spring Boot. Rev A, 2022: junior developer at CAST group. Rev 0, 2021: B.Sc. in Systems Analysis and Development at UniProjeção." width="100%" />
+<p align="center">
+  <a href="https://www.linkedin.com/in/eduardosantosalm/"><img src="./assets/linkedin.svg" height="44" alt="LinkedIn: eduardosantosalm" /></a>
+</p>
 
-<img src="./assets/sheet-03-materials.svg" alt="Sheet 03, bill of materials (stack): Java, Spring Boot, Quarkus, Apache Kafka, REST and SOAP, OpenShift, SQL Server, Oracle Database and React. Legacy being migrated: Apache Camel, Oracle SOA, C# and ASP.NET MVC." width="100%" />
+<img src="./assets/right-now.svg" width="100%" alt="Right now. Working on: backend services at CASSI, one of Brazil's largest self-managed health plans. Building with: Spring Boot, Quarkus and Apache Kafka, deployed on OpenShift. Learning: DDD, Clean Architecture and TDD, in a postgrad in Agile Software Engineering. Previously: CAST group, where I went from junior to senior developer in 15 months." />
+
+<img src="./assets/stack.svg" width="100%" alt="Tech stack. Languages and frameworks: Java, Spring Boot, Quarkus. Messaging and APIs: Apache Kafka, REST, SOAP. Platform and data: OpenShift, SQL Server, Oracle. Front end and .NET: React, C#, ASP.NET MVC." />
+
+<img src="./assets/modernization.svg" width="100%" alt="Legacy modernization, five migrations: ASP.NET Web Forms to ASP.NET MVC (CAST group, 2022); Apache Camel to Spring Boot (CAST group, 2022 to 2023); every Oracle SOA SOAP service to Spring Boot REST APIs (CAST group, 2023 to 2024); ASP.NET MVC 4.6 to Java and React, and OpenShift 3 to OpenShift 4 (CASSI, ongoing since 2024)." />
+
+<a href="https://www.linkedin.com/in/eduardosantosalm/"><img src="./assets/contact.svg" width="100%" alt="Contact. Let's talk. Happy to chat about backend, event-driven systems and legacy modernization. Find me on LinkedIn." /></a>
+
+<p align="center"><sub>Styled after Brasília's metro, which runs two lines: green and orange.</sub></p>
 
 <details>
 <summary>🇧🇷 <b>Versão em português</b></summary>
 <br>
 
-Desenvolvedor backend Java com **mais de 4 anos de experiência**, construindo e modernizando sistemas corporativos. Hoje na **[CASSI](https://www.cassi.com.br)**, com Spring Boot, Quarkus e Kafka, migrando sistemas legados para arquiteturas modernas.
+Desenvolvedor backend Java em **Brasília**. Gosto de APIs bem feitas, sistemas orientados a eventos e de transformar código legado em algo em que dá gosto trabalhar.
 
-Este perfil foi desenhado como um conjunto de pranchas técnicas:
+- **Agora:** serviços backend na **[CASSI](https://www.cassi.com.br)**, uma das maiores operadoras de autogestão em saúde do país, com Spring Boot, Quarkus e Apache Kafka no OpenShift.
+- **Estudando:** DDD, Clean Architecture e TDD, na pós-graduação em Engenharia de Software Ágil.
+- **Antes:** CAST group, onde passei de júnior a sênior em 15 meses.
+- **Stack:** Java, Spring Boot, Quarkus, Apache Kafka, REST, SOAP, OpenShift, SQL Server, Oracle, React, C# e ASP.NET MVC.
+- **Modernização de legado:** ASP.NET Web Forms → ASP.NET MVC · Apache Camel → Spring Boot · todos os serviços SOAP do Oracle SOA → APIs REST em Spring Boot · ASP.NET MVC 4.6 → Java + React · OpenShift 3 → OpenShift 4.
 
-- **Prancha 01 — Arranjo geral:** como eu trabalho. As requisições passam por uma fachada enquanto o legado (Oracle SOA, Apache Camel, ASP.NET MVC, OpenShift 3) é substituído aos poucos por serviços novos orientados a eventos, no padrão *strangler fig*. A nuvem vermelha marca a revisão D, a CASSI.
-- **Prancha 02 — Histórico de revisões:** minha carreira. 0: bacharelado na UniProjeção (2021) · A, B e C: júnior, pleno e sênior na CAST group (2022–2024) · D: CASSI (2024) · E: pós-graduação em Engenharia de Software Ágil na UNIASSELVI (2026).
-- **Prancha 03 — Lista de materiais:** minha stack. Os itens hachurados (Apache Camel, Oracle SOA, ASP.NET MVC) são o legado que eu migro.
+Vamos conversar? Me chama no **[LinkedIn](https://www.linkedin.com/in/eduardosantosalm/)**.
 
 </details>
