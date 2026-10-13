@@ -1,282 +1,372 @@
-"""Generates the SVG images used by the profile README.
+"""Draws the profile README as a set of blueprint sheets.
+
+Sheet 01 is a general arrangement of the work I do: requests routed through a
+facade while legacy systems are strangled and replaced by event-driven services.
+Sheet 02 is my career as a drawing's revision history, and sheet 03 is my stack
+as a bill of materials.
 
 Run from the repository root:  python scripts/build_assets.py
 """
+import math
 from pathlib import Path
 from xml.sax.saxutils import escape
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 
-BG = "#0D1117"
-PANEL = "#161B22"
-BORDER = "#30363D"
-DOT = "#21262D"
-TEXT = "#E6EDF3"
-SUB = "#C9D1D9"
-MUTED = "#8B949E"
-
-JAVA = "#F89820"
-SPRING = "#6DB33F"
-KAFKA = "#58A6FF"
-DOTNET = "#A371F7"
-OPENSHIFT = "#F85149"
-AMBER = "#D29922"
-GREEN = "#3FB950"
+PAPER = "#0F3460"
+FILL = "#13406F"
+GRID = "#1A4777"
+GRID_MAJOR = "#23558B"
+INK = "#EAF2FF"
+INK_DIM = "#9FBBE0"
+REDLINE = "#FF8A7A"
+MARKER = "#FFD166"
 
 STYLE = """<style>
-.sans{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif}
-.mono{font-family:'JetBrains Mono','SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace}
-@keyframes flow{to{stroke-dashoffset:-28}}
-.flow{stroke-dasharray:4 10;animation:flow 1s linear infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.pulse{animation:pulse 1.6s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){.flow,.pulse{animation:none}}
+.t{font-family:Bahnschrift,'DIN Alternate','Roboto Condensed','Arial Narrow',Arial,sans-serif}
+.m{font-family:Consolas,'SFMono-Regular','JetBrains Mono','Liberation Mono',Menlo,monospace}
+@keyframes ink{to{stroke-dashoffset:0}}
+.ink{animation:ink 2.4s ease-out .5s forwards}
+@media (prefers-reduced-motion:reduce){.ink{animation:none;stroke-dashoffset:0}}
 </style>"""
 
-DOTS = (
-    '<pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">'
-    f'<circle cx="2" cy="2" r="1.2" fill="{DOT}"/></pattern>'
+DEFS = (
+    '<pattern id="minor" x="30" y="30" width="20" height="20" patternUnits="userSpaceOnUse">'
+    f'<path d="M20,0 H0 V20" fill="none" stroke="{GRID}" stroke-width="0.6"/></pattern>'
+    '<pattern id="major" x="30" y="30" width="100" height="100" patternUnits="userSpaceOnUse">'
+    f'<path d="M100,0 H0 V100" fill="none" stroke="{GRID_MAJOR}"/></pattern>'
+    '<pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+    f'<line x1="0" y1="0" x2="0" y2="10" stroke="{INK_DIM}" stroke-opacity="0.35"/></pattern>'
+    '<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" '
+    f'markerWidth="10" markerHeight="10" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="{INK}"/></marker>'
+    '<marker id="arrow-dim" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" '
+    f'markerWidth="10" markerHeight="10" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="{INK_DIM}"/></marker>'
 )
 
 
-def svg(width, height, label, body, extra_defs=""):
+def text(x, y, content, size, *, mono=False, fill=INK, bold=False, anchor="start", spacing=0, extra=""):
+    attrs = [f'class="{"m" if mono else "t"}"', f'x="{x}"', f'y="{y}"', f'font-size="{size}"', f'fill="{fill}"']
+    if bold:
+        attrs.append('font-weight="700"')
+    if anchor != "start":
+        attrs.append(f'text-anchor="{anchor}"')
+    if spacing:
+        attrs.append(f'letter-spacing="{spacing}"')
+    return f'<text {" ".join(attrs)}{extra}>{escape(content)}</text>'
+
+
+def box(x, y, w, h, fill=FILL, stroke=INK, extra=""):
+    return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"{extra}/>'
+
+
+def sheet(w, h, label, body):
+    """A drawing sheet: blueprint paper, grid, double border and zone markers."""
+    parts = [
+        f'<rect width="{w}" height="{h}" rx="6" fill="{PAPER}"/>',
+        f'<rect x="30" y="30" width="{w - 60}" height="{h - 60}" fill="url(#minor)"/>',
+        f'<rect x="30" y="30" width="{w - 60}" height="{h - 60}" fill="url(#major)"/>',
+        f'<rect x="10" y="10" width="{w - 20}" height="{h - 20}" fill="none" stroke="{INK_DIM}"/>',
+        f'<rect x="30" y="30" width="{w - 60}" height="{h - 60}" fill="none" stroke="{INK}" stroke-width="2"/>',
+    ]
+    columns, rows = 6, max(2, round((h - 60) / 200))
+    zone_w, zone_h = (w - 60) / columns, (h - 60) / rows
+    for i in range(columns):
+        cx = 30 + zone_w * (i + 0.5)
+        letter = "ABCDEF"[i]
+        parts += [
+            text(cx, 24, letter, 11, mono=True, fill=INK_DIM, anchor="middle"),
+            text(cx, h - 16, letter, 11, mono=True, fill=INK_DIM, anchor="middle"),
+        ]
+        if i:
+            x = 30 + zone_w * i
+            parts.append(f'<path d="M{x},10 V30 M{x},{h - 30} V{h - 10}" stroke="{INK_DIM}"/>')
+    for j in range(rows):
+        cy = 30 + zone_h * (j + 0.5) + 4
+        parts += [
+            text(20, cy, str(j + 1), 11, mono=True, fill=INK_DIM, anchor="middle"),
+            text(w - 20, cy, str(j + 1), 11, mono=True, fill=INK_DIM, anchor="middle"),
+        ]
+        if j:
+            y = 30 + zone_h * j
+            parts.append(f'<path d="M10,{y} H30 M{w - 30},{y} H{w - 10}" stroke="{INK_DIM}"/>')
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
-        f'viewBox="0 0 {width} {height}" role="img" aria-label="{escape(label)}">'
-        f"<defs>{STYLE}{DOTS}{extra_defs}</defs>{''.join(body)}</svg>"
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
+        f'role="img" aria-label="{escape(label)}"><defs>{STYLE}{DEFS}</defs>{"".join(parts)}{"".join(body)}</svg>'
     )
 
 
-def packets(path, color, dur, count, r=3.5):
-    """Message dots travelling along a path, evenly spaced in time."""
+def cloud(x, y, w, h, bump):
+    """Revision cloud around a rectangle, drawn clockwise. Returns the path and its length."""
+    d, length = [f"M{x},{y}"], 0.0
+    for dx, dy, side in ((1, 0, w), (0, 1, h), (-1, 0, w), (0, -1, h)):
+        n = max(1, round(side / (2 * bump)))
+        step = side / n
+        d += [f"a{step / 2:.2f},{step / 2:.2f} 0 0 1 {dx * step:.2f},{dy * step:.2f}"] * n
+        length += n * math.pi * step / 2
+    return " ".join(d), length
+
+
+def rev_tag(cx, cy, letter, size=13):
+    """Drafting revision triangle."""
+    points = f"{cx},{cy - size} {cx + size * 0.95},{cy + size * 0.6} {cx - size * 0.95},{cy + size * 0.6}"
+    return f'<polygon points="{points}" fill="{PAPER}" stroke="{REDLINE}" stroke-width="1.6"/>' + text(
+        cx, cy + size * 0.38, letter, size * 0.85, mono=True, fill=REDLINE, bold=True, anchor="middle"
+    )
+
+
+def callout(cx, cy, number, r=9):
+    return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{PAPER}" stroke="{MARKER}" stroke-width="1.5"/>' + text(
+        cx, cy + 4, number, 11, mono=True, fill=MARKER, bold=True, anchor="middle"
+    )
+
+
+def travelling(path, color, dur, count, r=4, opacity=1):
+    """Dots moving along a path: requests through the facade, events on the bus."""
     return "".join(
-        f'<circle r="{r}" fill="{color}"><animateMotion dur="{dur}s" '
+        f'<circle r="{r}" fill="{color}" fill-opacity="{opacity}"><animateMotion dur="{dur}s" '
         f'begin="-{dur * i / count:.2f}s" repeatCount="indefinite" path="{path}"/></circle>'
         for i in range(count)
     )
 
 
-def link(path, color, dur, count, r=3.5):
+def north_arrow(cx, cy):
     return (
-        f'<path d="{path}" stroke="{BORDER}" stroke-width="2.5" stroke-linecap="round"/>'
-        f'<path class="flow" d="{path}" stroke="{color}" stroke-width="2.5" '
-        f'stroke-linecap="round" stroke-opacity="0.8"/>' + packets(path, color, dur, count, r)
+        f'<circle cx="{cx}" cy="{cy}" r="20" fill="none" stroke="{INK_DIM}"/>'
+        f'<path d="M{cx},{cy - 16} L{cx + 7},{cy + 10} L{cx},{cy + 5} Z" fill="{INK}"/>'
+        f'<path d="M{cx},{cy - 16} L{cx - 7},{cy + 10} L{cx},{cy + 5} Z" fill="none" stroke="{INK}"/>'
+        + text(cx, cy - 26, "N", 12, bold=True, anchor="middle")
     )
 
 
-def icon(x, y, size, tag, color):
-    font = 15 if len(tag) <= 2 else 12
-    return (
-        f'<rect x="{x}" y="{y}" width="{size}" height="{size}" rx="10" fill="{color}" '
-        f'fill-opacity="0.15" stroke="{color}" stroke-opacity="0.6"/>'
-        f'<text class="mono" x="{x + size / 2}" y="{y + size / 2 + font / 3}" text-anchor="middle" '
-        f'font-size="{font}" font-weight="700" fill="{color}">{escape(tag)}</text>'
-    )
-
-
-def hero():
-    w, h = 1200, 420
-    glows = (
-        '<radialGradient id="glowA" cx="0.88" cy="0.12" r="0.5">'
-        f'<stop offset="0" stop-color="{JAVA}" stop-opacity="0.18"/>'
-        f'<stop offset="1" stop-color="{JAVA}" stop-opacity="0"/></radialGradient>'
-        '<radialGradient id="glowB" cx="0.05" cy="0.95" r="0.45">'
-        f'<stop offset="0" stop-color="{KAFKA}" stop-opacity="0.12"/>'
-        f'<stop offset="1" stop-color="{KAFKA}" stop-opacity="0"/></radialGradient>'
-    )
-    body = [
-        f'<rect width="{w}" height="{h}" rx="16" fill="{BG}"/>',
-        f'<rect width="{w}" height="{h}" rx="16" fill="url(#dots)"/>',
-        f'<rect width="{w}" height="{h}" rx="16" fill="url(#glowA)"/>',
-        f'<rect width="{w}" height="{h}" rx="16" fill="url(#glowB)"/>',
-        f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="16" fill="none" stroke="{BORDER}"/>',
-        # Terminal-style title bar
-        f'<path d="M0,16 a16,16 0 0 1 16,-16 H{w - 16} a16,16 0 0 1 16,16 V52 H0 Z" fill="{PANEL}"/>',
-        f'<line x1="0" y1="52" x2="{w}" y2="52" stroke="{BORDER}"/>',
-        *(f'<circle cx="{28 + i * 20}" cy="26" r="6" fill="{c}"/>' for i, c in enumerate((OPENSHIFT, AMBER, GREEN))),
-        f'<text class="mono" x="100" y="31" font-size="14" fill="{MUTED}">$ kafka-console-consumer --topic '
-        f'<tspan fill="{SUB}">eduardo.profile</tspan> --from-beginning</text>',
-        f'<circle class="pulse" cx="1080" cy="26" r="5" fill="{GREEN}"/>',
-        f'<text class="mono" x="1092" y="31" font-size="13" fill="{SUB}">streaming</text>',
-        # Name and headline
-        f'<text class="sans" x="60" y="146" font-size="60" font-weight="800" fill="{TEXT}" '
-        f'letter-spacing="-1">Eduardo <tspan fill="{JAVA}">Alecrim</tspan></text>',
-        f'<text class="sans" x="62" y="188" font-size="22" font-weight="500" fill="{SUB}">'
-        "Java Backend Developer · Spring Boot · Quarkus · Kafka</text>",
-        f'<text class="mono" x="62" y="220" font-size="14" fill="{MUTED}">'
-        "// modernizing legacy systems into event-driven services</text>",
+def arrangement():
+    w, h = 1200, 640
+    b = [
+        text(60, 102, "EDUARDO ALECRIM", 56, bold=True, spacing=4),
+        text(62, 136, "JAVA BACKEND DEVELOPER · SPRING BOOT · QUARKUS · KAFKA", 18, fill=INK_DIM, spacing=2.5),
+        text(62, 166, "GENERAL ARRANGEMENT — MODERNIZING LEGACY INTO EVENT-DRIVEN SERVICES", 13, mono=True, fill=MARKER, spacing=1),
+        text(960, 78, "SITE", 10, mono=True, fill=INK_DIM, spacing=2),
+        text(960, 100, "BRASÍLIA-DF", 18, bold=True, spacing=1.5),
+        text(960, 120, "15°47′S 47°52′W", 11, mono=True, fill=INK_DIM),
+        north_arrow(1122, 100),
     ]
 
-    bx, by = 780, 82
-    body += [
-        f'<rect x="{bx}" y="{by}" width="360" height="140" rx="10" fill="{JAVA}" fill-opacity="0.07" '
-        f'stroke="{JAVA}" stroke-opacity="0.35"/>',
-        f'<text class="mono" x="{bx + 20}" y="{by + 28}" font-size="12" font-weight="700" fill="{JAVA}" '
-        'letter-spacing="1.5">CURRENTLY @ CASSI</text>',
+    # Requests enter through a facade that routes them to legacy or new services
+    b += [
+        text(60, 318, "REQUESTS", 11, mono=True, fill=INK_DIM, spacing=1.5),
+        f'<path d="M60,330 H138" stroke="{INK}" stroke-width="1.5" marker-end="url(#arrow)"/>',
+        box(140, 200, 40, 270),
+        text(160, 340, "FACADE · ROUTING", 12, mono=True, anchor="middle", spacing=2, extra=' transform="rotate(-90 160 335)"'),
+        f'<path d="M180,245 H248" stroke="{INK_DIM}" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#arrow-dim)"/>',
+        f'<path d="M180,386 H273" stroke="{INK}" stroke-width="1.5" marker-end="url(#arrow)"/>',
     ]
-    for i, line in enumerate(("Event-driven services · Kafka", "ASP.NET MVC → Java + React", "OpenShift 3 → OpenShift 4")):
-        body.append(f'<text class="mono" x="{bx + 20}" y="{by + 56 + i * 24}" font-size="14" fill="{SUB}">{escape(line)}</text>')
-    body.append(f'<text class="mono" x="{bx + 20}" y="{by + 126}" font-size="12" fill="{MUTED}">supplementary healthcare · Brasília</text>')
 
-    # Pipeline: legacy in, event-driven services out
-    nodes = (
-        ("SOA", "Legacy", "Oracle SOA · ASP.NET", DOTNET),
-        ("SB", "Spring Boot", "Quarkus · REST · SOAP", SPRING),
-        ("K", "Apache Kafka", "event-driven · topics", KAFKA),
-        ("OS", "OpenShift", "containers · deploy", OPENSHIFT),
+    # Legacy: existing, to be removed
+    b += [
+        text(250, 192, "EXISTING — TO BE REMOVED", 11, mono=True, fill=INK_DIM, spacing=1.5),
+        box(250, 200, 390, 90, fill="url(#hatch)", stroke=INK_DIM, extra=' stroke-dasharray="8 6"'),
+        text(270, 234, "LEGACY", 20, bold=True, spacing=2),
+        text(270, 258, "ORACLE SOA · APACHE CAMEL", 12, mono=True, fill=INK_DIM),
+        text(270, 278, "ASP.NET MVC 4.6 · OPENSHIFT 3", 12, mono=True, fill=INK_DIM),
+        callout(626, 214, "1"),
+    ]
+
+    notes = (
+        "ORACLE SOA → SPRING BOOT, EVERY SOAP SERVICE · CAST GROUP",
+        "ASP.NET MVC 4.6 → JAVA + REACT · CASSI",
+        "OPENSHIFT 3 → OPENSHIFT 4 · CASSI",
     )
-    node_w, node_h, ny = 228, 76, 262
-    xs = (60, 344, 628, 912)
-    mid = ny + node_h // 2
-    for i in range(len(xs) - 1):
-        body.append(link(f"M{xs[i] + node_w},{mid} L{xs[i + 1]},{mid}", nodes[i + 1][3], dur=1.4, count=1))
-    for x, (tag, title, sub, color) in zip(xs, nodes):
-        body += [
-            f'<rect x="{x}" y="{ny}" width="{node_w}" height="{node_h}" rx="14" fill="{PANEL}" stroke="{BORDER}" stroke-width="1.5"/>',
-            icon(x + 14, ny + 16, 44, tag, color),
-            f'<text class="sans" x="{x + 72}" y="{ny + 34}" font-size="16" font-weight="700" fill="{TEXT}">{escape(title)}</text>',
-            f'<text class="mono" x="{x + 72}" y="{ny + 54}" font-size="11" fill="{MUTED}">{escape(sub)}</text>',
-            f'<circle cx="{x}" cy="{mid}" r="5" fill="{BG}" stroke="{MUTED}" stroke-width="1.5"/>',
-            f'<circle cx="{x + node_w}" cy="{mid}" r="5" fill="{MUTED}"/>',
+    b.append(text(680, 214, "NOTES", 12, mono=True, fill=INK_DIM, bold=True, spacing=2))
+    for i, note in enumerate(notes):
+        y = 240 + i * 22
+        b += [callout(690, y - 4, str(i + 1)), text(708, y, note, 13, mono=True)]
+
+    # New platform on OpenShift 4, with Kafka as the event bus
+    b += [
+        box(250, 318, 890, 152, fill="none"),
+        text(266, 342, "NEW PLATFORM — OPENSHIFT 4", 14, bold=True, spacing=2),
+        callout(548, 337, "3"),
+    ]
+    for i, (name, role) in enumerate((("SPRING BOOT", "SERVICES · REST APIs"), ("QUARKUS", "SERVICES"), ("REACT", "FRONTEND"))):
+        x = 275 + i * 200
+        b += [
+            box(x, 356, 180, 60),
+            text(x + 90, 382, name, 16, bold=True, anchor="middle", spacing=1.5),
+            text(x + 90, 402, role, 12, mono=True, fill=INK_DIM, anchor="middle"),
+        ]
+    b.append(callout(855, 356, "2"))
+
+    cx, top, bottom, rx, ry = 965, 362, 410, 90, 8
+    b += [
+        f'<path d="M{cx - rx},{top} V{bottom} A{rx},{ry} 0 0 0 {cx + rx},{bottom} V{top}" fill="{FILL}" stroke="{INK}" stroke-width="1.5"/>',
+        f'<ellipse cx="{cx}" cy="{top}" rx="{rx}" ry="{ry}" fill="{FILL}" stroke="{INK}" stroke-width="1.5"/>',
+        text(cx, 390, "SQL SERVER", 16, bold=True, anchor="middle", spacing=1.5),
+        text(cx, 406, "DATA MODELING", 11, mono=True, fill=INK_DIM, anchor="middle"),
+    ]
+
+    bus = 446
+    b += [
+        f'<path d="M365,416 V{bus - 4} M565,416 V{bus - 4}" stroke="{INK}" stroke-width="1.5" stroke-dasharray="3 3"/>',
+        f'<circle cx="365" cy="{bus - 4}" r="3" fill="{INK}"/><circle cx="565" cy="{bus - 4}" r="3" fill="{INK}"/>',
+        f'<path d="M275,{bus - 4} H1120 M275,{bus + 4} H1120" stroke="{INK}" stroke-width="1.5"/>',
+        travelling(f"M275,{bus} H1120", MARKER, dur=6, count=4, r=3.5),
+        box(880, bus - 11, 220, 22, fill=PAPER, stroke=INK),
+        text(990, bus + 4, "APACHE KAFKA · EVENT BUS", 12, mono=True, bold=True, anchor="middle", spacing=1),
+    ]
+
+    # Traffic shifts from legacy to the new services
+    b += [
+        travelling("M60,330 H160 V386 H273", INK, dur=3, count=3),
+        travelling("M60,330 H160 V245 H248", INK_DIM, dur=3, count=1, opacity=0.6),
+    ]
+
+    path, length = cloud(240, 308, 910, 172, bump=12)
+    b += [
+        f'<path class="ink" d="{path}" fill="none" stroke="{REDLINE}" stroke-width="1.6" stroke-linejoin="round" '
+        f'stroke-dasharray="{length:.0f}" stroke-dashoffset="{length:.0f}"/>',
+        rev_tag(1142, 302, "D", size=15),
+    ]
+
+    # Legend
+    mini_cloud, _ = cloud(450, 538, 36, 14, bump=4)
+    b += [
+        text(60, 516, "LEGEND", 12, mono=True, fill=INK_DIM, bold=True, spacing=2),
+        box(60, 536, 28, 16, fill="url(#hatch)", stroke=INK_DIM, extra=' stroke-dasharray="4 3"'),
+        text(98, 549, "EXISTING · TO BE REMOVED", 12, mono=True),
+        box(330, 536, 28, 16),
+        text(368, 549, "NEW", 12, mono=True),
+        f'<path d="{mini_cloud}" fill="none" stroke="{REDLINE}" stroke-width="1.4"/>',
+        text(500, 549, "REVISION D — CASSI, 2024", 12, mono=True),
+        f'<circle cx="74" cy="576" r="4" fill="{INK}"/>',
+        text(98, 580, "REQUEST", 12, mono=True),
+        f'<circle cx="344" cy="576" r="3.5" fill="{MARKER}"/>',
+        text(368, 580, "EVENT", 12, mono=True),
+        callout(468, 576, "1"),
+        text(500, 580, "SEE NOTE", 12, mono=True),
+    ]
+
+    # Title block
+    cells = (
+        (800, 500, 370, 36, "PROJECT", "EDUARDO ALECRIM"),
+        (800, 536, 230, 36, "ROLE", "JAVA BACKEND DEVELOPER"),
+        (1030, 536, 140, 36, "EXPERIENCE", "4+ YEARS"),
+        (800, 572, 150, 38, "ORGANIZATION", "CASSI"),
+        (950, 572, 120, 38, "SHEET", "01 / 03"),
+        (1070, 572, 100, 38, "REV", "E"),
+    )
+    for x, y, cw, ch, label, value in cells:
+        b += [
+            box(x, y, cw, ch, fill=PAPER),
+            text(x + 8, y + 12, label, 9, mono=True, fill=INK_DIM, spacing=1.5),
+            text(x + 8, y + 30, value, 15, bold=True, spacing=0.5),
         ]
 
-    body += [
-        f'<text class="mono" x="60" y="392" font-size="12" fill="{MUTED}"><tspan fill="{GREEN}">●</tspan> '
-        "4+ years in Java · CAST group → CASSI</text>",
-        f'<text class="mono" x="1140" y="392" text-anchor="end" font-size="12" fill="{MUTED}">Brasília, Brazil</text>',
+    return sheet(w, h, "Sheet 01, general arrangement: legacy systems replaced by event-driven services", b)
+
+
+def heading(title, subtitle, number):
+    return [
+        text(60, 88, title, 34, bold=True, spacing=3),
+        text(62, 114, subtitle, 12, mono=True, fill=MARKER, spacing=1),
+        text(1140, 84, f"SHEET {number} / 03", 16, bold=True, anchor="end", spacing=2),
+        text(1140, 106, "EDUARDO ALECRIM", 11, mono=True, fill=INK_DIM, anchor="end", spacing=1.5),
     ]
-    return svg(w, h, "Eduardo Alecrim, Java Backend Developer: Spring Boot, Quarkus, Kafka, OpenShift", body, glows)
 
 
-def section(number, title, color):
-    w, h, pill = 1200, 64, 230
-    body = [
-        f'<rect x="1" y="8" width="{pill}" height="48" rx="12" fill="{PANEL}" stroke="{BORDER}" stroke-width="1.5"/>',
-        f'<rect x="10" y="16" width="32" height="32" rx="8" fill="{color}" fill-opacity="0.15" stroke="{color}" stroke-opacity="0.6"/>',
-        f'<text class="mono" x="26" y="37" text-anchor="middle" font-size="13" font-weight="700" fill="{color}">{number}</text>',
-        f'<text class="sans" x="56" y="38" font-size="17" font-weight="700" fill="{TEXT}" letter-spacing="2">{escape(title)}</text>',
-        f'<circle cx="{pill + 1}" cy="32" r="4.5" fill="{MUTED}"/>',
-        link(f"M{pill + 1},32 L1188,32", color, dur=7, count=3, r=4),
-        f'<circle cx="1188" cy="32" r="6" fill="{BG}" stroke="{color}" stroke-width="2"/>',
-    ]
-    return svg(w, h, title, body)
-
-
-def card(tag, title, meta, description, status, status_color, tags, color, live=False):
-    w, h = 400, 220
-    body = [
-        f'<rect width="{w}" height="{h}" rx="16" fill="{PANEL}"/>',
-        f'<rect width="{w}" height="{h}" rx="16" fill="url(#dots)"/>',
-        f'<rect x="0.75" y="0.75" width="{w - 1.5}" height="{h - 1.5}" rx="16" fill="none" stroke="{BORDER}" stroke-width="1.5"/>',
-        f'<path d="M18,1.5 H{w - 18}" stroke="{color}" stroke-width="3" stroke-linecap="round"/>',
-        icon(22, 26, 44, tag, color),
-        f'<text class="sans" x="80" y="46" font-size="19" font-weight="700" fill="{TEXT}">{escape(title)}</text>',
-        f'<text class="mono" x="80" y="67" font-size="12" fill="{MUTED}">{escape(meta)}</text>',
-        *(
-            f'<text class="sans" x="24" y="{104 + i * 21}" font-size="15" fill="{SUB}">{escape(line)}</text>'
-            for i, line in enumerate(description)
-        ),
-        f'<line x1="22" y1="168" x2="{w - 22}" y2="168" stroke="{BORDER}"/>',
-        f'<circle{" class=\"pulse\"" if live else ""} cx="28" cy="192" r="4" fill="{status_color}"/>',
-        f'<text class="mono" x="40" y="196" font-size="12" fill="{MUTED}">{escape(status)}</text>',
-        f'<text class="mono" x="{w - 24}" y="196" text-anchor="end" font-size="12" font-weight="700" fill="{color}">{escape(tags)}</text>',
-    ]
-    return svg(w, h, f"{title}: {' '.join(description)}", body)
-
-
-def areas():
-    """Four panels summarizing what I work with."""
-    w, h, gap = 1200, 232, 20
-    panel_w = (w - 3 * gap) // 4
-    columns = (
-        ("JV", "BACKEND", JAVA, ("Java", "Spring Boot", "Quarkus", "REST · SOAP")),
-        ("EV", "INTEGRATION", KAFKA, ("Apache Kafka", "Apache Camel", "Oracle SOA", "SOAP → REST")),
-        ("DB", "DATA", AMBER, ("SQL Server", "Oracle", "Data modeling")),
-        ("OS", "PLATFORM", OPENSHIFT, ("OpenShift", "Containers", "React", "ASP.NET MVC · C#")),
+def revisions():
+    w, h = 1200, 540
+    rows = (
+        ("E", "2026-09", "POSTGRADUATE — AGILE SOFTWARE ENGINEERING", "DDD · CLEAN ARCHITECTURE · TDD", "UNIASSELVI", True),
+        ("D", "2024-10", "JAVA BACKEND DEVELOPER", "SPRING BOOT · QUARKUS · KAFKA · ASP.NET MVC → JAVA + REACT · OPENSHIFT 3 → 4", "CASSI", True),
+        ("C", "2023-07", "SENIOR DEVELOPER", "EVERY SOAP SERVICE OFF ORACLE SOA → SPRING BOOT · SOAP → REST · OPENSHIFT", "CAST GROUP", False),
+        ("B", "2022-10", "MID-LEVEL DEVELOPER", "APACHE CAMEL → SPRING BOOT · REST APIs · SOAP SERVICES · ASP.NET MVC", "CAST GROUP", False),
+        ("A", "2022-04", "JUNIOR DEVELOPER", "ASP.NET WEB FORMS → MVC · REST APIs · APACHE CAMEL BACKENDS", "CAST GROUP", False),
+        ("0", "2021-07", "INITIAL ISSUE — B.SC. SYSTEMS ANALYSIS AND DEVELOPMENT", "2019 – 2021", "UNIPROJEÇÃO", False),
     )
-    body = []
-    for i, (tag, title, color, items) in enumerate(columns):
-        x = i * (panel_w + gap)
-        body += [
-            f'<rect x="{x + 0.75}" y="0.75" width="{panel_w - 1.5}" height="{h - 1.5}" rx="16" fill="{PANEL}" stroke="{BORDER}" stroke-width="1.5"/>',
-            f'<rect x="{x}" y="0" width="{panel_w}" height="{h}" rx="16" fill="url(#dots)"/>',
-            f'<path d="M{x + 18},1.5 H{x + panel_w - 18}" stroke="{color}" stroke-width="3" stroke-linecap="round"/>',
-            icon(x + 20, 22, 44, tag, color),
-            f'<text class="sans" x="{x + 78}" y="50" font-size="17" font-weight="700" fill="{TEXT}" letter-spacing="1.5">{title}</text>',
-            *(
-                f'<text class="mono" x="{x + 24}" y="{108 + j * 30}" font-size="16" fill="{SUB}">'
-                f'<tspan fill="{color}">▸</tspan> {escape(item)}</text>'
-                for j, item in enumerate(items)
-            ),
+    b = heading("REVISION HISTORY", "CAREER — EACH REVISION SUPERSEDES THE PREVIOUS ONE", "02")
+    left, right, top, header_h, row_h = 60, 1140, 136, 34, 52
+    columns = ((60, "REV"), (140, "DATE"), (270, "DESCRIPTION"), (930, "ORGANIZATION"))
+    bottom = top + header_h + row_h * len(rows)
+
+    b.append(box(left, top, right - left, header_h))
+    for i, (rev, date, role, detail, org, active) in enumerate(rows):
+        y = top + header_h + i * row_h
+        if active:
+            b.append(f'<rect x="{left}" y="{y}" width="{right - left}" height="{row_h}" fill="{MARKER}" fill-opacity="0.07"/>')
+        b += [
+            rev_tag(100, y + 30, rev),
+            text(152, y + 31, date, 13, mono=True),
+            text(282, y + 22, role, 15, bold=True, spacing=1),
+            text(282, y + 41, detail, 12.5, mono=True, fill=INK_DIM),
+            text(942, y + 24, org, 14, bold=True, spacing=1),
         ]
-    return svg(w, h, "Backend, integration, data and platform skills", body)
+        if active:
+            b.append(text(942, y + 41, "● ACTIVE", 10, mono=True, fill=MARKER, spacing=1.5))
+        if i:
+            b.append(f'<path d="M{left},{y} H{right}" stroke="{INK_DIM}" stroke-opacity="0.6"/>')
+    for x, label in columns:
+        b.append(text(x + 12, top + 22, label, 11, mono=True, fill=INK_DIM, bold=True, spacing=2))
+        if x != left:
+            b.append(f'<path d="M{x},{top} V{bottom}" stroke="{INK}" stroke-width="1.2"/>')
+    b.append(f'<rect x="{left}" y="{top}" width="{right - left}" height="{bottom - top}" fill="none" stroke="{INK}" stroke-width="1.5"/>')
+    return sheet(w, h, "Sheet 02, revision history: career from 2021 to 2026", b)
 
 
-def footer():
-    w, h = 1200, 100
-    body = [
-        f'<rect width="{w}" height="{h}" rx="16" fill="{BG}"/>',
-        f'<rect width="{w}" height="{h}" rx="16" fill="url(#dots)"/>',
-        f'<rect x="0.5" y="0.5" width="{w - 1}" height="{h - 1}" rx="16" fill="none" stroke="{BORDER}"/>',
-        link("M40,52 L410,52", JAVA, dur=4, count=2),
-        link("M790,52 L1160,52", JAVA, dur=4, count=2),
-        f'<circle cx="40" cy="52" r="5" fill="{MUTED}"/>',
-        f'<circle cx="1160" cy="52" r="6" fill="{BG}" stroke="{JAVA}" stroke-width="2"/>',
-        f'<text class="mono" x="600" y="50" text-anchor="middle" font-size="14" fill="{SUB}"># end of stream · thanks for stopping by</text>',
-        f'<text class="mono" x="600" y="72" text-anchor="middle" font-size="12" fill="{MUTED}">fim do stream · obrigado pela visita</text>',
-    ]
-    return svg(w, h, "End of stream, thanks for stopping by", body)
-
-
-CARDS = {
-    "card-oracle-soa": card(
-        "SOA", "Oracle SOA → Spring Boot", "CAST group · 2023 – 2024",
-        ("Migrated every SOAP service from the Oracle", "SOA platform to Spring Boot apps, turning", "SOAP services into REST APIs."),
-        "shipped", GREEN, "Spring Boot · REST · OpenShift", SPRING,
-    ),
-    "card-kafka": card(
-        "K", "Event-driven services", "CASSI · 2024 – present",
-        ("Backend services with Spring Boot and", "Quarkus, plus event-driven applications", "built on Apache Kafka."),
-        "active", GREEN, "Kafka · Quarkus · Spring Boot", KAFKA, live=True,
-    ),
-    "card-aspnet-react": card(
-        "NET", "ASP.NET MVC → Java + React", "CASSI · 2024 – present",
-        ("Migrating legacy ASP.NET MVC 4.6 projects", "to a new architecture with a Java backend", "and a React frontend."),
-        "in progress", AMBER, "Java · React", DOTNET, live=True,
-    ),
-    "card-openshift": card(
-        "OS", "OpenShift 3 → 4", "CASSI · 2024 – present",
-        ("Migrating legacy applications from", "OpenShift 3 to OpenShift 4."),
-        "in progress", AMBER, "OpenShift · Containers", OPENSHIFT, live=True,
-    ),
-    "card-camel": card(
-        "CML", "Apache Camel → Spring Boot", "CAST group · 2022 – 2023",
-        ("Migrated legacy Apache Camel projects to", "Spring Boot, modernizing the integration", "architecture."),
-        "shipped", GREEN, "Camel · Spring Boot", JAVA,
-    ),
-    "card-data-modeling": card(
-        "DB", "Data modeling", "CASSI · SQL Server",
-        ("Designing SQL Server databases for new", "applications: data structures and entity", "relationships."),
-        "active", GREEN, "SQL Server", AMBER, live=True,
-    ),
-}
+def materials():
+    w, h = 1200, 500
+    items = (
+        ("JAVA", "CORE LANGUAGE · 4+ YEARS", False),
+        ("SPRING BOOT", "SERVICES · REST APIs", False),
+        ("QUARKUS", "BACKEND SERVICES", False),
+        ("APACHE KAFKA", "EVENT-DRIVEN MESSAGING", False),
+        ("REST · SOAP", "INTEGRATIONS · SOAP → REST", False),
+        ("OPENSHIFT", "CONTAINER PLATFORM · 3 → 4", False),
+        ("SQL SERVER", "DATA MODELING FOR NEW APPS", False),
+        ("ORACLE DATABASE", "RELATIONAL DATABASE", False),
+        ("REACT", "FRONTEND OF MIGRATED APPS", False),
+        ("APACHE CAMEL", "INTEGRATION · MIGRATED TO SPRING BOOT", True),
+        ("ORACLE SOA", "SOAP PLATFORM · MIGRATED TO SPRING BOOT", True),
+        ("C# · ASP.NET MVC", "LEGACY WEB APPS · BEING MIGRATED", True),
+    )
+    b = heading("BILL OF MATERIALS", "STACK — HATCHED ITEMS ARE THE LEGACY I MIGRATE", "03")
+    top, header_h, row_h, half = 136, 32, 40, len(items) // 2
+    for t, left in enumerate((60, 610)):
+        right = left + 530
+        cols = ((left, "ITEM"), (left + 60, "COMPONENT"), (left + 245, "FUNCTION"))
+        bottom = top + header_h + row_h * half
+        b.append(box(left, top, 530, header_h))
+        for i, (component, function, legacy) in enumerate(items[t * half:(t + 1) * half]):
+            y = top + header_h + i * row_h
+            if legacy:
+                b.append(f'<rect x="{left}" y="{y}" width="530" height="{row_h}" fill="url(#hatch)"/>')
+            b += [
+                text(left + 14, y + 26, f"{t * half + i + 1:02d}", 13, mono=True, fill=INK_DIM),
+                text(left + 72, y + 26, component, 15, bold=True, spacing=1, fill=INK_DIM if legacy else INK),
+                text(left + 257, y + 25, function, 12, mono=True, fill=INK_DIM if legacy else INK),
+            ]
+            if i:
+                b.append(f'<path d="M{left},{y} H{right}" stroke="{INK_DIM}" stroke-opacity="0.6"/>')
+        for x, label in cols:
+            b.append(text(x + 12, top + 21, label, 11, mono=True, fill=INK_DIM, bold=True, spacing=2))
+            if x != left:
+                b.append(f'<path d="M{x},{top} V{bottom}" stroke="{INK}" stroke-width="1.2"/>')
+        b.append(f'<rect x="{left}" y="{top}" width="530" height="{bottom - top}" fill="none" stroke="{INK}" stroke-width="1.5"/>')
+    b.append(text(600, 448, "END OF DRAWING SET · THANKS FOR STOPPING BY", 12, mono=True, fill=INK_DIM, anchor="middle", spacing=2))
+    return sheet(w, h, "Sheet 03, bill of materials: the stack I work with", b)
 
 
 def main():
     ASSETS.mkdir(exist_ok=True)
     files = {
-        "hero": hero(),
-        "areas": areas(),
-        "sec-about": section("01", "ABOUT ME", JAVA),
-        "sec-stack": section("02", "TECH STACK", SPRING),
-        "sec-highlights": section("03", "HIGHLIGHTS", KAFKA),
-        "sec-connect": section("04", "CONNECT", OPENSHIFT),
-        "footer": footer(),
-        **CARDS,
+        "sheet-01-arrangement": arrangement(),
+        "sheet-02-revisions": revisions(),
+        "sheet-03-materials": materials(),
     }
+    for stale in ASSETS.glob("*.svg"):
+        if stale.stem not in files:
+            stale.unlink()
     for name, content in files.items():
         (ASSETS / f"{name}.svg").write_text(content, encoding="utf-8")
-    print(f"wrote {len(files)} files to {ASSETS}")
+    print(f"wrote {len(files)} sheets to {ASSETS}")
 
 
 if __name__ == "__main__":
